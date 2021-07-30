@@ -40,7 +40,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
         currentMarker = mMap.addMarker(MarkerOptions().position(LatLng(0.0, 0.0)).title("Your current position").visible(false))
-        
+
         requestLocation()
 
         mMap.setOnMapLongClickListener {
