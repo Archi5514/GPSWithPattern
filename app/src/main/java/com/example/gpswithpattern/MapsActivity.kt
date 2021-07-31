@@ -25,8 +25,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var mMap: GoogleMap
     private lateinit var currentMarker: Marker
-    private var markers: ArrayList<Marker> = arrayListOf()
-    private var polylines: ArrayList<Polyline> = arrayListOf()
+    private var markersList: ArrayList<Marker> = arrayListOf()
+    private var polylinesList: ArrayList<Polyline> = arrayListOf()
+    private var addressesList: ArrayList<String> = arrayListOf()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,12 +52,12 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun requestLocationPermissions() {
-        if(!ActivityCompat.shouldShowRequestPermissionRationale(this, android.Manifest.permission.ACCESS_FINE_LOCATION)
-        || !ActivityCompat.shouldShowRequestPermissionRationale(this, android.Manifest.permission.ACCESS_COARSE_LOCATION)) {
+        if(!ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_FINE_LOCATION)
+        || !ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_COARSE_LOCATION)) {
             ActivityCompat.requestPermissions(
                 this,
-                arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION,
-                android.Manifest.permission.ACCESS_COARSE_LOCATION),
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION),
                 PERMISSION_REQUEST_CODE
             )
         }
@@ -73,18 +74,12 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         criteria.accuracy = Criteria.ACCURACY_COARSE
         val provider = locationManager.getBestProvider(criteria, true) ?: return
 
+        val lat = locationManager.getLastKnownLocation(provider)?.latitude
+        val long = locationManager.getLastKnownLocation(provider)?.longitude
+        getLocation(locationManager, provider, lat, long)
+
         locationManager.requestLocationUpdates(provider, 10000, 10f) {
-            val lat = it.latitude
-            val long = it.longitude
-            val currentPosition = LatLng(lat, long)
-
-            textLatitude.text = long.toString()
-            textLongitude.text = lat.toString()
-
-            currentMarker.position = currentPosition
-            currentMarker.isVisible = true
-
-            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentPosition, 12.0.toFloat()))
+            getLocation(locationManager, provider, it.latitude, it.longitude)
         }
     }
 
@@ -105,6 +100,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         Thread {
             try {
                 val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
+                addressesList.add(addresses[0].getAddressLine(0))
                 textAdress.post {
                     textAdress.text = addresses[0].getAddressLine(0)
                 }
@@ -112,41 +108,64 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 e.printStackTrace()
             }
         }.start()
-
     }
 
     private fun addMarker(location: LatLng) {
-        val title = "Dot ${markers.size + 1}"
+        val title = "Dot ${markersList.size + 1}"
         val marker = mMap.addMarker(
             MarkerOptions()
                 .position(location)
                 .title(title)
                 .icon(BitmapDescriptorFactory.defaultMarker()))
-        markers.add(marker)
+        markersList.add(marker)
     }
 
     private fun drawLine() {
-        val last = markers.size - 1
+        val last = markersList.size - 1
         if(last >= 1) {
-            val previous = markers[last - 1].position
-            val current = markers[last].position
+            val previous = markersList[last - 1].position
+            val current = markersList[last].position
             val polyline = mMap.addPolyline(PolylineOptions()
                 .add(previous, current)
                 .color(Color.CYAN)
                 .width(10f))
-            polylines.add(polyline)
+            polylinesList.add(polyline)
+        }
+    }
+
+    private fun getLocation(locationManager: LocationManager, provider: String, lat: Double?, long: Double?) {
+        if (lat != null && long != null) {
+            val position = LatLng(lat, long)
+            textLatitude.text = long.toString()
+            textLongitude.text = lat.toString()
+
+            currentMarker.position = position
+            currentMarker.isVisible = true
+
+            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(position, 12.0.toFloat()))
         }
     }
 
     override fun onBackPressed() {
-        if(markers.size >= 2) {
-            polylines[markers.size - 2].remove()
-            polylines.removeAt(markers.size - 2)
-            markers[markers.size - 1].remove()
-            markers.removeAt(markers.size - 1)
-        } else if(markers.size == 1) {
-            markers[markers.size - 1].remove()
-            markers.removeAt(markers.size - 1)
+        if(markersList.size >= 2) {
+
+            polylinesList.last().remove()
+            polylinesList.removeLast()
+
+            markersList.last().remove()
+            markersList.removeLast()
+
+            addressesList.removeLast()
+            textAdress.text = addressesList.last()
+
+        } else if(markersList.size == 1) {
+
+            markersList.last().remove()
+            markersList.removeLast()
+
+            addressesList.removeLast()
+            textAdress.text = ""
+
         } else {
             super.onBackPressed()
         }
